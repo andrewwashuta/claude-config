@@ -24,7 +24,7 @@ Reusable capabilities that Claude can invoke (use `/skill-name` in Claude):
 | `agent-browser` | Browser automation for web testing and interaction |
 | `favicon` | Generate favicons from a source image |
 | `rams` | Run accessibility and visual design review |
-| `reclaude` | _(description)_ |
+| `reclaude` | Refactor CLAUDE.md files for progressive disclosure |
 | `simplify` | Code simplification specialist |
 
 ## Managing your config

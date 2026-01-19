@@ -1,13 +1,13 @@
 # Claude Config
 
-Personal Claude Code settings and skills, synced across machines via symlinks.
+Personal Claude Code settings, skills, agents, and rules, synced across machines via symlinks.
 
 ## Commands
 
 ```bash
 ./install.sh          # Set up symlinks (run after cloning)
 ./sync.sh             # Show sync status
-./sync.sh add <name>  # Add a local skill to repo, then push
+./sync.sh add <type> <name>  # Add a local item to repo (types: skill, agent, rule)
 ./sync.sh pull        # Pull latest and reinstall symlinks
 ```
 
