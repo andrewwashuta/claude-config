@@ -5,8 +5,8 @@ My [Claude Code](https://docs.anthropic.com/en/docs/claude-code) configuration -
 ## Quick start
 
 ```bash
-git clone https://github.com/brianlovin/claude-config.git ~/Developer/claude-config
-cd ~/Developer/claude-config
+git clone https://github.com/brianlovin/claude-config.git
+cd claude-config
 ./install.sh
 ```
 
