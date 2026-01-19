@@ -20,16 +20,6 @@ if [ -f "$CONFIG_DIR/statusline.sh" ]; then
     echo "✓ statusline.sh"
 fi
 
-# Commands (individual files to allow local additions)
-mkdir -p ~/.claude/commands
-if ls "$CONFIG_DIR/commands"/*.md >/dev/null 2>&1; then
-    for f in "$CONFIG_DIR/commands"/*.md; do
-        [ -f "$f" ] || continue
-        ln -sf "$f" ~/.claude/commands/
-        echo "✓ commands/$(basename "$f")"
-    done
-fi
-
 # Skills (directory symlinks per skill)
 mkdir -p ~/.claude/skills
 for skill in "$CONFIG_DIR/skills"/*/; do
@@ -42,5 +32,5 @@ done
 echo ""
 echo "Done! Claude Code config installed."
 echo ""
-echo "Local-only skills/commands in ~/.claude/ are preserved."
+echo "Local-only skills in ~/.claude/ are preserved."
 echo "Use ./sync.sh to manage what gets shared."

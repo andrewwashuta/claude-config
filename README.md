@@ -1,6 +1,6 @@
 # claude-config
 
-My [Claude Code](https://docs.anthropic.com/en/docs/claude-code) configuration - settings, custom commands, and skills.
+My [Claude Code](https://docs.anthropic.com/en/docs/claude-code) configuration - settings and skills.
 
 ## Quick start
 
@@ -16,22 +16,16 @@ cd ~/Developer/claude-config
 - `settings.json` - Global permissions and preferences
 - `statusline.sh` - Custom statusline showing token usage
 
-### Commands
-Custom slash commands (invoke with `/<name>` in Claude):
-
-| Command | Description |
-|---------|-------------|
-| `/favicon` | Generate favicons from a source image |
-| `/rams` | Run accessibility and visual design review |
-| `/simplify` | Code simplification specialist |
-
 ### Skills
-Reusable capabilities that Claude can invoke:
+Reusable capabilities that Claude can invoke (use `/skill-name` in Claude):
 
 | Skill | Description |
 |-------|-------------|
 | `agent-browser` | Browser automation for web testing and interaction |
+| `favicon` | Generate favicons from a source image |
+| `rams` | Run accessibility and visual design review |
 | `reclaude` | _(description)_ |
+| `simplify` | Code simplification specialist |
 
 ## Managing your config
 
@@ -40,24 +34,20 @@ Reusable capabilities that Claude can invoke:
 ./sync.sh
 
 # Add a local skill to the repo
-./sync.sh add skill my-skill
-./sync.sh push
-
-# Add a local command to the repo
-./sync.sh add command my-command
+./sync.sh add my-skill
 ./sync.sh push
 
 # Pull changes on another machine
 ./sync.sh pull
 
-# Remove something from repo (keeps local copy)
-./sync.sh remove skill my-skill
+# Remove a skill from repo (keeps local copy)
+./sync.sh remove my-skill
 ./sync.sh push
 ```
 
 ## Local-only config
 
-Not everything needs to be synced. The install script only creates symlinks for what's in this repo - it won't delete your local-only skills or commands.
+Not everything needs to be synced. The install script only creates symlinks for what's in this repo - it won't delete your local-only skills.
 
 Machine-specific permissions accumulate in `~/.claude/settings.local.json` (auto-created by Claude, not synced).
 
@@ -69,7 +59,6 @@ Fork this repo and customize! The structure is simple:
 claude-config/
 ├── settings.json      # Claude Code settings
 ├── statusline.sh      # Optional statusline script
-├── commands/          # Custom slash commands (*.md)
 └── skills/            # Skills (subdirectories with SKILL.md or skill.md)
 ```
 
