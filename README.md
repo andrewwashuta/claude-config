@@ -5,8 +5,8 @@ My [Claude Code](https://docs.anthropic.com/en/docs/claude-code) configuration -
 ## Quick start
 
 ```bash
-git clone https://github.com/brianlovin/claude-config.git
-cd claude-config
+git clone https://github.com/andrewwashuta/claude-config.git ~/claude-config
+cd ~/claude-config
 ./install.sh
 ```
 
@@ -22,12 +22,17 @@ Reusable capabilities that Claude can invoke (use `/skill-name` in Claude):
 | Skill | Description |
 |-------|-------------|
 | `agent-browser` | Browser automation for web testing and interaction |
+| `agentation` | Add visual feedback toolbar to Next.js projects |
+| `bun` | Bun runtime and package manager tasks |
+| `deslop` | Remove AI-generated code slop |
 | `favicon` | Generate favicons from a source image |
+| `find-skills` | Search and discover available skills |
 | `knip` | Find and remove unused files, dependencies, and exports |
 | `rams` | Run accessibility and visual design review |
 | `reclaude` | Refactor CLAUDE.md files for progressive disclosure |
+| `sentry` | Sentry error tracking integration |
 | `simplify` | Code simplification specialist |
-| `deslop` | Remove AI-generated code slop |
+| `skill-creator` | Create new custom skills |
 
 ## Managing your config
 
@@ -95,9 +100,9 @@ Not everything needs to be synced. The install script only creates symlinks for 
 
 Machine-specific permissions accumulate in `~/.claude/settings.local.json` (auto-created by Claude, not synced).
 
-## Creating your own
+## Repository structure
 
-Fork this repo and customize! The structure is simple:
+The configuration follows this simple structure:
 
 ```
 claude-config/
@@ -112,4 +117,4 @@ claude-config/
 ## See also
 
 - [Claude Code docs](https://docs.anthropic.com/en/docs/claude-code)
-- [My dotfiles](https://github.com/brianlovin/dotfiles) - Shell, git, SSH config
+- [Original claude-config](https://github.com/brianlovin/claude-config) - Forked from Brian Lovin's configuration
