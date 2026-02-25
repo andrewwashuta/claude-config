@@ -100,11 +100,26 @@ mcp__sentry__search_issue_events(
 
 Extract from the events: actual URLs, request parameters, stack traces, timestamps, user context, extra data fields (status codes, content lengths, etc.). These are the real inputs that triggered the failure.
 
-### 3b. Read the failing code path
+### 3b. Cross-reference with Axiom logs
+
+Axiom events include `traceId` fields that correlate with Sentry errors. Use the Axiom CLI to pull surrounding logs for richer context:
+
+```bash
+# Get the traceId from the Sentry event's trace context
+# Then query Axiom for all events with that traceId
+axiom query "['shiori-events'] | where traceId == '<traceId>'" -f json
+
+# Or search by userId around the error timestamp for broader context
+axiom query "['shiori-events'] | where userId == '<userId>' | where _time > datetime('2025-01-01T00:00:00Z') and _time < datetime('2025-01-01T01:00:00Z')" -f json
+```
+
+Axiom logs include fields like `authMethod`, `client_version`, `event` type, and request metadata that Sentry often lacks. This helps you understand what the user was doing before and after the error.
+
+### 3c. Read the failing code path
 
 Follow the stack trace. Read every file in the chain. Understand what the code does before proposing changes. Use subagents for parallel file exploration if the stack is deep.
 
-### 3c. Trace the input path upstream
+### 3d. Trace the input path upstream
 
 This is the step most often skipped, and the most important:
 
@@ -113,7 +128,7 @@ This is the step most often skipped, and the most important:
 - **What does the input look like?** For URL-based failures: is it a binary file? A redirect? A localhost URL? Something the API can't handle?
 - **Is the failure in our code or an external service?** If external: can we prevent sending bad inputs? Can we add better pre-filtering?
 
-### 3d. Reproduce and verify
+### 3e. Reproduce and verify
 
 Use the actual failing inputs from Sentry events:
 - Call the function with the exact data that failed
@@ -121,7 +136,7 @@ Use the actual failing inputs from Sentry events:
 - Add temporary `console.log` statements to verify your understanding of the code flow
 - Check if the failure is in our code or an external service
 
-### 3e. Identify root cause
+### 3f. Identify root cause
 
 Ask these questions in order:
 
@@ -141,7 +156,7 @@ Common root causes:
 | Same error on every cron run | Stale reference to deleted external resource | Detect staleness, auto-clean |
 | Error logged but details not useful | Error object not included, or status code missing | Improve the log to include actionable details |
 
-### 3f. Know your log levels
+### 3g. Know your log levels
 
 Log levels control what reaches Sentry:
 
@@ -220,6 +235,7 @@ Work through issues by priority (most events first). After each PR:
 
 ```
 [ ] Pulled event-level data (not just issue summary)
+[ ] Cross-referenced with Axiom logs using traceId for surrounding context
 [ ] Read the failing code path end-to-end
 [ ] Traced the input path upstream — understood what data triggers the failure
 [ ] Identified root cause (not just "it has a fallback")
