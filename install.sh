@@ -312,6 +312,41 @@ main() {
         done
     fi
 
+    # Hooks (file symlinks per hook)
+    if [ -d "$CONFIG_DIR/hooks" ] && ls "$CONFIG_DIR/hooks"/*.sh &>/dev/null; then
+        mkdir -p "$CLAUDE_HOME/hooks"
+        for hook in "$CONFIG_DIR/hooks"/*.sh; do
+            [ -f "$hook" ] || continue
+            hook_name=$(basename "$hook")
+            local dest="$CLAUDE_HOME/hooks/$hook_name"
+
+            if $DRY_RUN; then
+                if has_conflict "$dest"; then
+                    dry_run_msg "Would backup and replace hooks/$hook_name"
+                else
+                    dry_run_msg "Would link hooks/$hook_name"
+                fi
+            else
+                if has_conflict "$dest"; then
+                    [ -z "$backup_path" ] && backup_path=$(create_backup)
+                    if handle_conflict "$hook" "$dest" "$backup_path" "hooks/$hook_name"; then
+                        backed_up_items+=("hooks/$hook_name")
+                        rm -rf "$dest"
+                        ln -sf "$hook" "$dest"
+                        echo -e "${GREEN}✓${RESET} hooks/$hook_name (replaced, backup saved)"
+                        has_changes=true
+                    else
+                        echo -e "${YELLOW}○${RESET} hooks/$hook_name (kept local)"
+                    fi
+                else
+                    ln -sf "$hook" "$dest"
+                    echo -e "${GREEN}✓${RESET} hooks/$hook_name"
+                    has_changes=true
+                fi
+            fi
+        done
+    fi
+
     # Rules (file symlinks per rule)
     if [ -d "$CONFIG_DIR/rules" ] && ls "$CONFIG_DIR/rules"/*.md &>/dev/null; then
         mkdir -p "$CLAUDE_HOME/rules"
