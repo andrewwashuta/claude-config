@@ -8,6 +8,25 @@ exec >> "$LOG_FILE" 2>&1
 echo ""
 echo "=== $(date '+%Y-%m-%d %H:%M:%S') — Stop hook fired ==="
 
+# Prevent recursion: claude -p (used for summarization) is itself a CC session,
+# so it fires the Stop hook again when it finishes. Lock file breaks the cycle.
+# We do NOT delete the lock on EXIT — it must outlive this process so the child
+# claude -p's Stop hook still sees it. Instead, ignore stale locks (>60s old).
+LOCK_FILE="/tmp/session-notes-hook.lock"
+if [ -f "$LOCK_FILE" ]; then
+  LOCK_AGE=$(( $(date +%s) - $(stat -f %m "$LOCK_FILE" 2>/dev/null || stat -c %Y "$LOCK_FILE" 2>/dev/null || echo 0) ))
+  if [ "$LOCK_AGE" -lt 60 ]; then
+    echo "Skipping — lock file exists (${LOCK_AGE}s old, likely recursive call). Exiting."
+    exit 0
+  else
+    echo "Stale lock file (${LOCK_AGE}s old), removing and continuing."
+    rm -f "$LOCK_FILE"
+  fi
+fi
+touch "$LOCK_FILE"
+# Clean up lock after claude -p has had time to finish its Stop hook
+trap 'sleep 5; rm -f "$LOCK_FILE"' EXIT
+
 VAULT_DIR="$HOME/Documents/Obsidian Vault/Personal/sessions"
 
 # ── Read hook input ──────────────────────────────────────────────
@@ -132,11 +151,6 @@ fi
 
 EXCHANGE_COUNT=$(echo "$CONVERSATION" | grep -c "^\*\*User:\*\*\|^\*\*Assistant:\*\*" || true)
 echo "Exchange count: $EXCHANGE_COUNT"
-
-if [ "$EXCHANGE_COUNT" -lt 4 ]; then
-  echo "Skipping — too few exchanges ($EXCHANGE_COUNT)"
-  exit 0
-fi
 
 # ── Summarize via claude CLI ─────────────────────────────────────
 echo "Calling claude -p..."
