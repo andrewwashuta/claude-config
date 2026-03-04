@@ -3,7 +3,7 @@
 ## Setting up on a new machine
 
 ```bash
-git clone git@github.com:brianlovin/agent-config.git ~/Developer/agent-config
+git clone git@github.com:andrewwashuta/claude-config.git ~/claude-config
 cd ~/Developer/agent-config
 ./install.sh
 ```
