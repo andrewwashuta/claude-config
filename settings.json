@@ -10,6 +10,19 @@
     "type": "command",
     "command": "~/.claude/statusline.sh"
   },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/session-notes.sh",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  },
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true
 }
