@@ -1,17 +1,14 @@
 #!/bin/bash
 # session-notes.sh — Claude Code Stop hook
-# Summarizes a CC session and writes a note to the Obsidian vault,
-# organized into subfolders by project.
+# Summarizes a CC session and writes/overwrites a single note per session
+# in the Obsidian vault, organized into subfolders by project.
 
 LOG_FILE="$HOME/.claude/hooks/session-notes.log"
 exec >> "$LOG_FILE" 2>&1
 echo ""
 echo "=== $(date '+%Y-%m-%d %H:%M:%S') — Stop hook fired ==="
 
-# Prevent recursion: claude -p (used for summarization) is itself a CC session,
-# so it fires the Stop hook again when it finishes. Lock file breaks the cycle.
-# We do NOT delete the lock on EXIT — it must outlive this process so the child
-# claude -p's Stop hook still sees it. Instead, ignore stale locks (>60s old).
+# Prevent recursion: claude -p fires Stop hook too
 LOCK_FILE="/tmp/session-notes-hook.lock"
 if [ -f "$LOCK_FILE" ]; then
   LOCK_AGE=$(( $(date +%s) - $(stat -f %m "$LOCK_FILE" 2>/dev/null || stat -c %Y "$LOCK_FILE" 2>/dev/null || echo 0) ))
@@ -24,7 +21,6 @@ if [ -f "$LOCK_FILE" ]; then
   fi
 fi
 touch "$LOCK_FILE"
-# Clean up lock after claude -p has had time to finish its Stop hook
 trap 'sleep 5; rm -f "$LOCK_FILE"' EXIT
 
 VAULT_DIR="$HOME/Documents/Obsidian Vault/Personal/sessions"
@@ -33,35 +29,36 @@ VAULT_DIR="$HOME/Documents/Obsidian Vault/Personal/sessions"
 HOOK_INPUT=$(cat)
 echo "Hook input: $HOOK_INPUT"
 
-# Parse fields from JSON
 eval "$(echo "$HOOK_INPUT" | python3 -c "
 import json, sys, shlex
 data = json.load(sys.stdin)
 print(f'TRANSCRIPT_PATH={shlex.quote(data.get(\"transcript_path\", \"\"))}')
 print(f'SESSION_CWD={shlex.quote(data.get(\"cwd\", \"\"))}')
 print(f'SESSION_ID={shlex.quote(data.get(\"session_id\", \"\"))}')
-print(f'LAST_MSG={shlex.quote(data.get(\"last_assistant_message\", \"\")[:200])}')
 ")"
 
 echo "Transcript: $TRANSCRIPT_PATH"
 echo "CWD: $SESSION_CWD"
+echo "Session ID: $SESSION_ID"
 
 if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
   echo "ERROR: transcript not found at '$TRANSCRIPT_PATH'. Exiting."
   exit 0
 fi
 
-# ── Determine project, workspace, and subfolder ─────────────────
+if [ -z "$SESSION_ID" ]; then
+  echo "ERROR: no session_id. Exiting."
+  exit 0
+fi
+
+# ── Determine project and subfolder ──────────────────────────────
 DIR_NAME=$(basename "$(dirname "$TRANSCRIPT_PATH")")
 PROJECT=""
 WORKSPACE=""
 SUBFOLDER=""
 
 if echo "$DIR_NAME" | grep -q "conductor-workspaces"; then
-  # Conductor: extract repo name + workspace (branch city name)
   SUFFIX=$(echo "$DIR_NAME" | sed 's/.*conductor-workspaces-//')
-
-  # Match against known project directories
   for PROJ_DIR in "$HOME/conductor/workspaces"/*/; do
     [ -d "$PROJ_DIR" ] || continue
     PROJ_NAME=$(basename "$PROJ_DIR")
@@ -71,18 +68,13 @@ if echo "$DIR_NAME" | grep -q "conductor-workspaces"; then
       break
     fi
   done
-
   if [ -z "$PROJECT" ]; then
     PROJECT="conductor"
     WORKSPACE="$SUFFIX"
   fi
-
   SUBFOLDER="$PROJECT"
-
 else
-  # Non-conductor: derive a clean name from the cwd
   if [ -n "$SESSION_CWD" ]; then
-    # Strip home prefix, use the last meaningful directory component
     CLEAN=$(echo "$SESSION_CWD" | sed "s|^$HOME/||; s|^/Users/[^/]*/||; s|/$||")
     if [ -z "$CLEAN" ] || [ "$CLEAN" = "$SESSION_CWD" ]; then
       PROJECT="home"
@@ -90,15 +82,50 @@ else
       PROJECT="$CLEAN"
     fi
   else
-    # Fallback: parse from the transcript directory name
     CLEAN=$(echo "$DIR_NAME" | sed 's/^-Users-[^-]*-//; s/^-//' | tr '-' '/')
     PROJECT="${CLEAN:-misc}"
   fi
-
   SUBFOLDER=$(echo "$PROJECT" | tr '/' '-')
 fi
 
 echo "Project: $PROJECT | Workspace: $WORKSPACE | Subfolder: $SUBFOLDER"
+
+# ── Get session start date from transcript ───────────────────────
+SESSION_DATE=$(python3 -c "
+import json
+with open('$TRANSCRIPT_PATH') as f:
+    for line in f:
+        try:
+            obj = json.loads(line)
+            ts = obj.get('timestamp', '')
+            if ts:
+                print(ts[:10])
+                break
+        except:
+            continue
+" 2>/dev/null)
+SESSION_DATE="${SESSION_DATE:-$(date +%Y-%m-%d)}"
+
+# ── Check for existing note for this session ─────────────────────
+SESSION_SHORT="${SESSION_ID:0:8}"
+NOTE_DIR="${VAULT_DIR}/${SUBFOLDER}"
+mkdir -p "$NOTE_DIR"
+
+# Find existing note for this session (glob on session ID prefix)
+EXISTING=$(find "$NOTE_DIR" -name "*-${SESSION_SHORT}.md" -type f 2>/dev/null | head -1)
+if [ -n "$EXISTING" ]; then
+  FULL_PATH="$EXISTING"
+  echo "Updating existing note: $FULL_PATH"
+else
+  if [ -n "$WORKSPACE" ]; then
+    FILENAME="${SESSION_DATE}-${SESSION_SHORT}-${WORKSPACE}.md"
+  else
+    FILENAME="${SESSION_DATE}-${SESSION_SHORT}.md"
+  fi
+  FILENAME=$(echo "$FILENAME" | tr '/' '-' | tr ' ' '-')
+  FULL_PATH="${NOTE_DIR}/${FILENAME}"
+  echo "Creating new note: $FULL_PATH"
+fi
 
 # ── Extract conversation ─────────────────────────────────────────
 CONVERSATION=$(TRANSCRIPT_PATH="$TRANSCRIPT_PATH" python3 << 'PYEOF'
@@ -185,41 +212,32 @@ if [ $CLAUDE_EXIT -ne 0 ] || [ -z "$SUMMARY" ]; then
 Exchanges: $EXCHANGE_COUNT"
 fi
 
-# ── Write the note ───────────────────────────────────────────────
+# ── Write/overwrite the note ─────────────────────────────────────
 TIMESTAMP=$(date +"%Y-%m-%d %H:%M")
-DATE_SLUG=$(date +"%Y-%m-%d-%H%M")
 
 if [ -n "$WORKSPACE" ]; then
-  FILENAME="${DATE_SLUG}-${WORKSPACE}.md"
   TITLE="${PROJECT} / ${WORKSPACE}"
 else
-  FILENAME="${DATE_SLUG}.md"
   TITLE="$PROJECT"
 fi
-
-# Clean filename
-FILENAME=$(echo "$FILENAME" | tr '/' '-' | tr ' ' '-')
-
-# Create subfolder
-NOTE_DIR="${VAULT_DIR}/${SUBFOLDER}"
-mkdir -p "$NOTE_DIR"
-
-FULL_PATH="${NOTE_DIR}/${FILENAME}"
 
 cat > "$FULL_PATH" << NOTEEOF
 ---
 type: session-note
 project: ${PROJECT}
 workspace: ${WORKSPACE}
-date: ${TIMESTAMP}
+session_id: ${SESSION_ID}
+date: ${SESSION_DATE}
+updated: ${TIMESTAMP}
 transcript: ${TRANSCRIPT_PATH}
+exchanges: ${EXCHANGE_COUNT}
 tags:
   - session-note
   - ${SUBFOLDER}
 ---
 
 # ${TITLE}
-_${TIMESTAMP}_
+_${SESSION_DATE} | ${EXCHANGE_COUNT} exchanges | updated ${TIMESTAMP}_
 
 ${SUMMARY}
 NOTEEOF

@@ -6,10 +6,6 @@
     ],
     "deny": []
   },
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/statusline.sh"
-  },
   "hooks": {
     "Stop": [
       {
@@ -22,6 +18,10 @@
         ]
       }
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh"
   },
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true
