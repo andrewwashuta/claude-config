@@ -236,6 +236,51 @@ main() {
         fi
     fi
 
+    # Dotfiles
+    local dotfiles_map=(
+        ".zshrc:$HOME/.zshrc"
+        ".gitconfig:$HOME/.gitconfig"
+        "starship.toml:$HOME/.config/starship.toml"
+    )
+
+    if [ -d "$CONFIG_DIR/dotfiles" ]; then
+        for entry in "${dotfiles_map[@]}"; do
+            local src_name="${entry%%:*}"
+            local dest="${entry#*:}"
+            local src="$CONFIG_DIR/dotfiles/$src_name"
+
+            [ -f "$src" ] || continue
+
+            if $DRY_RUN; then
+                if has_conflict "$dest"; then
+                    dry_run_msg "Would backup and replace $dest"
+                else
+                    dry_run_msg "Would link $dest → $src"
+                fi
+            else
+                local dest_dir="$(dirname "$dest")"
+                [ -d "$dest_dir" ] || mkdir -p "$dest_dir"
+
+                if has_conflict "$dest"; then
+                    [ -z "$backup_path" ] && backup_path=$(create_backup)
+                    if handle_conflict "$src" "$dest" "$backup_path" "dotfiles/$src_name"; then
+                        backed_up_items+=("dotfiles/$src_name")
+                        rm -rf "$dest"
+                        ln -sf "$src" "$dest"
+                        echo -e "${GREEN}✓${RESET} $dest (replaced, backup saved)"
+                        has_changes=true
+                    else
+                        echo -e "${YELLOW}○${RESET} $dest (kept local)"
+                    fi
+                else
+                    ln -sf "$src" "$dest"
+                    echo -e "${GREEN}✓${RESET} $dest"
+                    has_changes=true
+                fi
+            fi
+        done
+    fi
+
     # Skills (directory symlinks per skill)
     if [ -d "$CONFIG_DIR/skills" ] && [ -n "$(ls -A "$CONFIG_DIR/skills" 2>/dev/null)" ]; then
         if ! $DRY_RUN; then
