@@ -1,0 +1,27 @@
+# Minimal & Clean Starship Configuration
+
+format = """$directory$git_branch$git_status$character"""
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+
+[directory]
+style = "bold blue"
+truncation_length = 3
+truncate_to_repo = true
+format = "[$path]($style) "
+
+[git_branch]
+symbol = ""
+style = "bold purple"
+format = "[$symbol$branch]($style) "
+
+[git_status]
+style = "bold yellow"
+format = "[$all_status]($style) "
+conflicted = "✗ "
+untracked = "? "
+modified = "✗ "
+staged = "+ "
+deleted = "- "
